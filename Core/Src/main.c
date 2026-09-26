@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -45,6 +46,8 @@
 
 /* USER CODE BEGIN PV */
 uint8_t pData[] = {1,2,3,4};
+
+uint32_t ARR = 1000;
 
 /* USER CODE END PV */
 
@@ -89,27 +92,50 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART6_UART_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_UART_Transmit(&huart6, pData, 4, HAL_MAX_DELAY);
 
-  HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, GPIO_PIN_RESET);
+
+  HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint8_t brightness = 0;
+  uint8_t up = 1;
+
   while (1)
   {
-    uint8_t Recved;
-    HAL_UART_Receive(&huart6, &Recved, 1, HAL_MAX_DELAY);
+    
+    // uint8_t Recved;
+    // HAL_UART_Receive(&huart6, &Recved, 1, HAL_MAX_DELAY);
 
-    if (Recved == 1) {
-      HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, GPIO_PIN_RESET);
-    } else if (Recved == 0) {
-      HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_RESET);
+    // if (Recved == 1) {
+    //   HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_SET);
+    //   HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, GPIO_PIN_RESET);
+    // } else if (Recved == 0) {
+    //   HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, GPIO_PIN_SET);
+    //   HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_RESET);
+    // }
+
+    if (up == 1) {
+      __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_3, brightness);
+      ++brightness;
+      if (brightness == ARR) {
+        up = 0;
+      }
+      HAL_Delay(1);
+    } else if (up == 0) {
+      __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_3, brightness);
+      --brightness;
+      if (brightness == 0) {
+        up = 1;
+      }
+      HAL_Delay(1);
     }
 
     
