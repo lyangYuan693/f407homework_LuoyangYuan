@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "can.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -49,11 +50,20 @@ uint8_t pData[] = {1,2,3,4};
 
 uint32_t ARR = 1000;
 
+uint8_t Recved;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+  if (huart == &huart6) {
+    HAL_UART_Transmit_IT(&huart6, &Recved, 1);
+    HAL_UART_Receive_IT(&huart6, &Recved, 1);
+  }
+  
+}
 
 /* USER CODE END PFP */
 
@@ -93,6 +103,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART6_UART_Init();
   MX_TIM5_Init();
+  MX_CAN1_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_UART_Transmit(&huart6, pData, 4, HAL_MAX_DELAY);
@@ -108,10 +119,11 @@ int main(void)
   uint8_t brightness = 0;
   uint8_t up = 1;
 
+  HAL_UART_Receive_IT(&huart6, &Recved, 1);
   while (1)
   {
     
-    // uint8_t Recved;
+    
     // HAL_UART_Receive(&huart6, &Recved, 1, HAL_MAX_DELAY);
 
     // if (Recved == 1) {
@@ -128,17 +140,18 @@ int main(void)
       if (brightness == ARR) {
         up = 0;
       }
-      HAL_Delay(1);
+      HAL_Delay(2);
     } else if (up == 0) {
       __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_3, brightness);
       --brightness;
       if (brightness == 0) {
         up = 1;
       }
-      HAL_Delay(1);
+      HAL_Delay(2);
     }
 
-    
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
