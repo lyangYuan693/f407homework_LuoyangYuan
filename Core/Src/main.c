@@ -51,6 +51,39 @@ uint8_t pData[] = {1,2,3,4};
 uint32_t ARR = 1000;
 
 uint8_t Recved;
+
+uint8_t data[8];
+
+uint8_t rdata[8];
+
+uint32_t Txmailbox;
+
+CAN_FilterTypeDef f = {0};
+
+void CAN_FilterTypeDef_config(void) {
+  f.FilterActivation = ENABLE;
+  f.FilterMode = CAN_FILTERMODE_IDMASK;
+  f.FilterScale = CAN_FILTERSCALE_32BIT;
+  f.FilterIdHigh = 0x0000;
+  f.FilterIdLow = 0x0000;
+  f.FilterMaskIdHigh = 0x0000;
+  f.FilterMaskIdLow = 0x0000;
+  f.FilterBank = 0;
+  f.FilterFIFOAssignment = CAN_RX_FIFO0;
+}
+
+CAN_TxHeaderTypeDef h = {0};
+void CAN_TxHeaderTypeDef_config(void) {
+  h.StdId = 0x123;
+  h.DLC = 1;
+  h.TransmitGlobalTime = DISABLE;
+  h.IDE = CAN_ID_STD;
+  h.RTR = CAN_RTR_DATA;
+}
+
+CAN_RxHeaderTypeDef rh;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,6 +98,31 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   
 }
 
+void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan) {
+  if (hcan == &hcan1) {
+    if (data[0] == 0) {
+      HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_SET);
+    } else {
+      HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_RESET);
+    }
+ 
+  }
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    if (hcan->Instance == CAN1) {
+        if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rh, rdata) == HAL_OK) {
+            if (rh.IDE == CAN_ID_STD && rh.StdId == 0x123) {
+                if (rdata[0] == 0)
+                    HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10,GPIO_PIN_SET);
+                else
+                    HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_RESET);
+            }
+          
+        }
+    }
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -112,12 +170,21 @@ int main(void)
   HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, GPIO_PIN_RESET);
 
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3);
+
+
+  CAN_FilterTypeDef_config();
+  CAN_TxHeaderTypeDef_config();
+  HAL_CAN_ConfigFilter(&hcan1, &f);
+  HAL_CAN_Start(&hcan1);
+
+  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint8_t brightness = 0;
-  uint8_t up = 1;
+  // uint8_t brightness = 0;
+  // uint8_t up = 1;
 
   HAL_UART_Receive_IT(&huart6, &Recved, 1);
   while (1)
@@ -134,22 +201,27 @@ int main(void)
     //   HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, GPIO_PIN_RESET);
     // }
 
-    if (up == 1) {
-      __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_3, brightness);
-      ++brightness;
-      if (brightness == ARR) {
-        up = 0;
-      }
-      HAL_Delay(2);
-    } else if (up == 0) {
-      __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_3, brightness);
-      --brightness;
-      if (brightness == 0) {
-        up = 1;
-      }
-      HAL_Delay(2);
-    }
+    // if (up == 1) {
+    //   __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_3, brightness);
+    //   ++brightness;
+    //   if (brightness == ARR) {
+    //     up = 0;
+    //   }
+    //   HAL_Delay(2);
+    // } else if (up == 0) {
+    //   __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_3, brightness);
+    //   --brightness;
+    //   if (brightness == 0) {
+    //     up = 1;
+    //   }
+    //   HAL_Delay(2);
+    // }
 
+    data[0] = (data[0] == 0) ? 1 : 0;
+    if ( HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0) {
+      HAL_CAN_AddTxMessage(&hcan1, &h, data, &Txmailbox);
+      HAL_Delay(500);
+    }
 
 
     /* USER CODE END WHILE */
